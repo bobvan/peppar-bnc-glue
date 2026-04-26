@@ -12,6 +12,11 @@
 # General
 logFile=/home/bob/peppar-bnc-glue/log/bnc.log
 
+# Required for headless: BNC's GUI starts streams + PPP only when
+# the operator clicks Start.  In --nw mode we need autoStart=2 (yes)
+# or BNC exits ~immediately with code 3 ("nothing to do").
+autoStart=2
+
 # Streams Panel: list of NTRIP mounts BNC pulls.  Format per element:
 #   //USER:PASS@HOST:PORT/MOUNT FORMAT COUNTRY LAT LON nmea NTRIPVER
 # Multiple elements separated by ";".
