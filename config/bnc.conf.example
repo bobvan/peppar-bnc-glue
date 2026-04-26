@@ -28,7 +28,13 @@ autoStart=2
 #
 # Replace USER and PASS with credentials from /home/bob/peppar-fix/
 # ntrip-cnes.conf and /home/bob/peppar-fix/ntrip.conf respectively.
-mountPoints=//:@127.0.0.1:2102/F9T_PTPMON RTCM_3.3 USA 38.00 -122.00 no 1;//USER:PASS@products.igs-ip.net:443/SSRA00CNE0 RTCM_3.3 FRA 48.00 2.00 no 2s;//USER:PASS@ntrip.data.gnss.ga.gov.au:443/BCEP00BKG0 RTCM_3.3 AUS -27.00 153.00 no 2s
+#
+# IMPORTANT: the value MUST be wrapped in double quotes.  BNC's
+# QSettings .ini parser treats unquoted ";" as a comment-start
+# character, which silently truncates mountPoints after the first
+# entry — confirmed by "Configuration read: ..., 1 stream(s)" in
+# bnc.log when the quotes were missing.
+mountPoints="//:@127.0.0.1:2102/F9T_PTPMON RTCM_3.3 USA 38.00 -122.00 no 1;//USER:PASS@products.igs-ip.net:443/SSRA00CNE0 RTCM_3.3 FRA 48.00 2.00 no 2s;//USER:PASS@ntrip.data.gnss.ga.gov.au:443/BCEP00BKG0 RTCM_3.3 AUS -27.00 153.00 no 2s"
 
 # PPP Client Panel 1
 PPP/dataSource=Real-Time Streams
@@ -42,7 +48,7 @@ PPP/logPath=/home/bob/peppar-bnc-glue/log/
 #
 # Station table format per element:
 #   MOUNT,σdN(mm),σdE(mm),σdU(mm),σpN(mm),σpE(mm),σpU(mm),σTropo(m),Qtropo,port,signals
-PPP/staTable=F9T_PTPMON,100.0,100.0,100.0,100.0,100.0,100.0,0.1,3e-6,0,G:1&C G:2&L E:1&C E:7&Q C:2&I C:7&I
+PPP/staTable="F9T_PTPMON,100.0,100.0,100.0,100.0,100.0,100.0,0.1,3e-6,0,G:1&C G:2&L E:1&C E:7&Q C:2&I C:7&I"
 
 # Linear combinations: P3&L3 = ionosphere-free code+phase
 PPP/lcGPS=P3&L3
