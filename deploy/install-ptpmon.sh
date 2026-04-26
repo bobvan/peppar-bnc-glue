@@ -95,7 +95,9 @@ fi
 # ── 5. systemd units ─────────────────────────────────────────────────────── #
 
 echo "==> systemd units"
-for unit in str2str-ptpmon.service bnc-ptpmon.service; do
+# Always install str2str — it's the F9T → local-NTRIP feeder, useful
+# even before BNC is up.
+for unit in str2str-ptpmon.service; do
     src="${REPO_DIR}/deploy/systemd/${unit}"
     dst="/etc/systemd/system/${unit}"
     if [[ ! -f "${src}" ]]; then
@@ -104,6 +106,17 @@ for unit in str2str-ptpmon.service bnc-ptpmon.service; do
     fi
     run sudo install -m 0644 "${src}" "${dst}"
 done
+
+# Install bnc unit only if the bnc binary is available.  Otherwise it
+# fails to start on enable + creates systemd noise.
+if command -v bnc >/dev/null 2>&1 || [[ -x /usr/local/bin/bnc ]]; then
+    src="${REPO_DIR}/deploy/systemd/bnc-ptpmon.service"
+    dst="/etc/systemd/system/bnc-ptpmon.service"
+    run sudo install -m 0644 "${src}" "${dst}"
+else
+    echo "skipping bnc-ptpmon.service install — bnc binary not present yet"
+fi
+
 run sudo systemctl daemon-reload
 
 # ── 6. Reminders ──────────────────────────────────────────────────────────── #

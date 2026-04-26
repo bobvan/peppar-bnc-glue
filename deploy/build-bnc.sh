@@ -32,6 +32,9 @@ BNC_SVN="https://software.rtcm-ntrip.org/svn/trunk/BNC"
 #
 # This script will be filled in during ptpmon bring-up.
 
-echo "build-bnc.sh: not yet implemented (placeholder)"
-echo "Manual instructions in the source comments above."
-exit 1
+echo "build-bnc.sh: deferred (placeholder; needs first-run verification)."
+echo "  Skipping for now.  BNC will not be available until this script"
+echo "  is filled in.  The rest of the install (apt deps, venv, systemd"
+echo "  units, F9T config) can complete without it; str2str-only smoke"
+echo "  testing of the RTCM 3 stream is possible without BNC."
+exit 0

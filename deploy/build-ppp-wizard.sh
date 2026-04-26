@@ -41,9 +41,11 @@ PPPW_URL="http://www.ppp-wizard.net/Articles/RTKLIB_Demo5_Wizard_Hardlink.tgz"
 # headers and linked against /usr/local/lib/libpppw.a — see
 # build-bnc.sh for that wiring.
 
-echo "build-ppp-wizard.sh: not yet implemented (placeholder)"
-echo "Manual instructions in the source comments above."
+echo "build-ppp-wizard.sh: deferred (placeholder; needs first-run verification)."
+echo "  Skipping for now.  PPP-Wizard will not be available until this"
+echo "  script is filled in.  BNC + PPP-Wizard come online together"
+echo "  (PPP-Wizard's library is loaded by BNC's rtrover backend)."
 echo ""
-echo "Note: PPP-Wizard is research-use-only (not OSI).  Read the"
-echo "license at ppp-wizard.net before redistributing build outputs."
-exit 1
+echo "  Note: PPP-Wizard is research-use-only (not OSI).  Read the"
+echo "  license at ppp-wizard.net before redistributing build outputs."
+exit 0
