@@ -9,10 +9,18 @@ Type=simple
 User=bob
 Group=bob
 
-# Bind to loopback only — no NTRIP authentication.  BNC connects
-# from localhost.
+# Bind to all interfaces — no NTRIP auth.  Originally loopback-only,
+# opened to the lab LAN (10.168.60.x) so other hosts / agents can
+# pull the F9T_PTPMON mount for their own analyses.  ptpmon is not
+# exposed to the public internet (NAT'd lab LAN), so unauthenticated
+# is acceptable here.
+#
+# DO NOT route NTRIP traffic over the PTP LAN (10.168.13.x — eth1 /
+# e810p1).  That LAN is reserved for timing traffic per CLAUDE.md.
+# External clients should connect via ptpmon's lab LAN address or
+# the `ptpmon` DNS name (which resolves to the lab LAN, not PTP).
 ExecStart=/usr/bin/python3 /home/bob/peppar-bnc-glue/deploy/ntrip_caster_local.py \
-    --listen-host 127.0.0.1 \
+    --listen-host 0.0.0.0 \
     --listen-port 2102 \
     --upstream-host 127.0.0.1 \
     --upstream-port 2101 \
