@@ -1,0 +1,27 @@
+[Unit]
+Description=Local NTRIP caster — fronts the F9T raw-TCP feed for BNC PPP
+Documentation=https://github.com/bobvan/peppar-bnc-glue
+After=f9t-tcp-bridge-ptpmon.service
+Requires=f9t-tcp-bridge-ptpmon.service
+
+[Service]
+Type=simple
+User=bob
+Group=bob
+
+# Bind to loopback only — no NTRIP authentication.  BNC connects
+# from localhost.
+ExecStart=/usr/bin/python3 /home/bob/peppar-bnc-glue/deploy/ntrip_caster_local.py \
+    --listen-host 127.0.0.1 \
+    --listen-port 2102 \
+    --upstream-host 127.0.0.1 \
+    --upstream-port 2101 \
+    --mount F9T_PTPMON
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

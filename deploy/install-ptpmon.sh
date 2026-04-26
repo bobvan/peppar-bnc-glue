@@ -96,8 +96,12 @@ fi
 # ── 5. systemd units ─────────────────────────────────────────────────────── #
 
 echo "==> systemd units"
-# Always install the F9T TCP bridge — useful even before BNC is up.
-for unit in f9t-tcp-bridge-ptpmon.service; do
+# Always install the F9T TCP bridge + local NTRIP caster.  Both
+# are useful even before BNC is up: bridge alone can be
+# captured / decoded by anyone speaking raw TCP, and the caster
+# adds the NTRIP/1.0 wrapping that BNC and other NTRIP clients
+# expect.
+for unit in f9t-tcp-bridge-ptpmon.service ntrip-caster-local-ptpmon.service; do
     src="${REPO_DIR}/deploy/systemd/${unit}"
     dst="/etc/systemd/system/${unit}"
     if [[ ! -f "${src}" ]]; then
