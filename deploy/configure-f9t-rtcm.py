@@ -50,6 +50,56 @@ except ImportError:
           file=sys.stderr)
     sys.exit(1)
 
+import os
+
+
+class KernelGnssFd:
+    """Minimal file-like wrapper around a kernel GNSS char device.
+
+    pyserial assumes a tty and tries termios.tcgetattr, which fails with
+    'Inappropriate ioctl for device' on /dev/gnss*.  Use raw os.open() +
+    os.read()/os.write() instead.  Mirrors PePPAR-Fix's
+    scripts/peppar_fix/gnss_stream.py:KernelGnssStream's API surface but
+    trimmed to what UBXReader needs (read, write, reset_input_buffer,
+    flush, close)."""
+
+    def __init__(self, path: str) -> None:
+        self._fd = os.open(path, os.O_RDWR)
+
+    def read(self, n: int = 1) -> bytes:
+        # pyubx2 calls read in tight loops; non-blocking would spin.
+        # Default kernel char device is blocking, which is what we want.
+        try:
+            return os.read(self._fd, n)
+        except BlockingIOError:
+            return b""
+
+    def write(self, data: bytes) -> int:
+        return os.write(self._fd, data)
+
+    def reset_input_buffer(self) -> None:
+        # Drain anything already queued.  No tcflush; just read what's
+        # available with a brief deadline.
+        import select
+        deadline = time.monotonic() + 0.2
+        while time.monotonic() < deadline:
+            r, _, _ = select.select([self._fd], [], [], 0.05)
+            if not r:
+                return
+            try:
+                os.read(self._fd, 4096)
+            except BlockingIOError:
+                return
+
+    def flush(self) -> None:
+        os.fsync(self._fd)
+
+    def close(self) -> None:
+        try:
+            os.close(self._fd)
+        except OSError:
+            pass
+
 
 # ── F9T configuration: target state for RTCM 3 output ────────────────────── #
 #
@@ -87,10 +137,20 @@ _RATE = [
 ALL_TARGET = _UBX_OUTPUTS_OFF + _RTCM_OUTPUTS_ON + _RATE
 
 
-def open_port(device: str) -> serial.Serial:
-    """Open the F9T device.  Kernel GNSS char devices ignore baud."""
-    # 38400 is a placeholder — kernel char device on /dev/gnss0 doesn't
-    # use it.  Plain serial port (USB or UART) needs a real value.
+def open_port(device: str):
+    """Open the F9T device.
+
+    /dev/gnss* (kernel GNSS char device) is NOT a tty — pyserial's
+    termios.tcgetattr fails on it.  Use the raw-fd wrapper.
+    /dev/ttyACM*, /dev/gnss-top, etc. are real serial ports — use
+    pyserial.
+    """
+    base = os.path.basename(device)
+    if base.startswith("gnss") and base[4:].isdigit():
+        return KernelGnssFd(device)
+    # 38400 is a placeholder; the actual baud comes from the engine
+    # config in production use.  For one-shot configuration this is
+    # fine — VALSET works at any baud the F9T already negotiated.
     return serial.Serial(device, 38400, timeout=2)
 
 
