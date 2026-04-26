@@ -48,7 +48,7 @@ APT_PKGS=(
     qtbase5-dev
     libqt5opengl5-dev
     libqt5network5
-    libqt5positioning5-dev
+    qtpositioning5-dev
     libqt5serialport5-dev
     libssl-dev
     rtklib
