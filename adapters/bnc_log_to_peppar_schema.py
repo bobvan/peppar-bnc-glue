@@ -200,12 +200,20 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     p.add_argument("--in", dest="in_path", type=Path, required=True)
     p.add_argument("--out", dest="out_path", type=Path, required=True)
-    p.add_argument("--engine", default="bnc-ppp-wizard")
+    p.add_argument(
+        "--engine",
+        default="bnc-internal-ppp",
+        help="set to 'bnc-ppp-wizard' once the PPP-Wizard backend is "
+        "linked; default 'bnc-internal-ppp' reflects BNC's built-in "
+        "float-PPP engine",
+    )
     p.add_argument(
         "--corrections-source",
-        default="PPP-Wizard_BNC_SSRA00CNE0",
+        default="BNC_SSRA00CNE0",
         help="free-text identifier for the corrections-source axis "
-        "(see PePPAR-Fix's external-PPP-log-schema.md)",
+        "(see PePPAR-Fix's external-PPP-log-schema.md).  Override "
+        "this when the SSR mount or AC changes — the bias-source "
+        "axis is the most informative comparison axis.",
     )
     p.add_argument("--host", default=None)
     p.add_argument(

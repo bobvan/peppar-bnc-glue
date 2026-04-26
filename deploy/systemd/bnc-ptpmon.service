@@ -1,29 +1,21 @@
 [Unit]
-Description=BKG NTRIP Client (BNC) running CNES PPP-Wizard backend
+Description=BKG NTRIP Client (BNC) — float PPP cross-engine validator
 Documentation=https://igs.bkg.bund.de/ntrip/bnc
-After=f9t-tcp-bridge-ptpmon.service network-online.target
-Wants=f9t-tcp-bridge-ptpmon.service network-online.target
+After=ntrip-caster-local-ptpmon.service network-online.target
+Wants=ntrip-caster-local-ptpmon.service network-online.target
 
 [Service]
 Type=simple
 User=bob
 Group=bob
-
-# Headless BNC.  Config holds:
-#   - rover NTRIP source: localhost:2101 (str2str output)
-#   - corrections NTRIP: SSRA00CNE0 + BCEP00BKG0 from products.igs-ip.net
-#     (credentials from /home/bob/peppar-fix/ntrip*.conf — out of repo)
-#   - PPP option: enabled, rtrover backend, PPP-Wizard library
-#   - output: /var/log/bnc/ppp.jsonl (or wherever the operator points)
-ExecStart=/usr/local/bin/bnc --nw --conf /home/bob/peppar-bnc-glue/config/bnc.conf
-
+ExecStart=/home/bob/peppar-bnc-glue/deploy/run-bnc.sh
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# BNC + PPP-Wizard library loads ~few hundred MB of orbits into RAM.
-# Cap to keep the box healthy.
+# BNC + future PPP-Wizard library may load orbits into RAM.  Cap
+# generously to keep the box healthy.
 MemoryMax=2G
 
 [Install]
