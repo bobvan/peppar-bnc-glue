@@ -1,0 +1,82 @@
+# ptpmon F9T-PTP configuration for RTCM 3 output mode.
+#
+# This config replaces the peppar-fix engine's RAWX+TIM-TP+SFRBX
+# UBX output with an RTCM 3 MSM7 stream suitable for BNC consumption.
+# Apply to the F9T via deploy/configure-f9t-rtcm.sh, which speaks
+# UBX-CFG-VALSET against /dev/gnss0.
+#
+# References:
+# - PePPAR-Fix's docs/platform-support.md (E810 AQ-mediated I2C
+#   bandwidth limit ~1.5–1.7 kB/s sustained — 1 Hz RTCM 3 MSM7
+#   GPS+GAL+BDS at ~1 kB/s fits comfortably).
+# - PePPAR-Fix's docs/f9t-firmware-capabilities.md (F9T-PTP is the
+#   ZED-F9T TIM 2.20 L2-only variant; vpManager_07 = 0; tracks
+#   L1CA + L2C + GAL E1+E5b + BDS B1+B2I).
+
+[receiver]
+host = "ptpmon"
+device = "/dev/gnss0"      # kernel GNSS char device on E810
+firmware_expected = "TIM 2.20"
+hardware_expected = "ZED-F9T (L2-only, vpManager_07=0)"
+
+# Sample rate.  At 0.5 Hz we have margin for AQ-contention gaps;
+# 1 Hz cuts it close.  PRIDE/IGS standard is 30 s — 0.5 Hz is
+# already overkill for PPP-AR convergence.
+[receiver.rate]
+measurement_rate_ms = 2000     # 0.5 Hz; bump to 1000 if I2C headroom allows
+
+# Signal plan — limited to what F9T-PTP physically supports.
+# Constellation enables matched to CNES phase-bias coverage:
+#   - GPS L1CA + L2C  (CNES has L1C + L2L code bias; L2 phase bias
+#     mismatched L2L vs L2W per project_cnes_phase_bias_signals)
+#   - GAL E1   + E5b  (L1C + L7Q — both fully covered by CNES,
+#     this is the cleanest AR path)
+#   - BDS B1   + B2I  (CNES BDS bias coverage incomplete but pass
+#     through anyway for visibility)
+[receiver.signals]
+gps_l1ca = true
+gps_l2c  = true
+gps_l5   = false   # F9T-PTP NAKs L5 (no 1176 MHz RF chain)
+gal_e1   = true
+gal_e5a  = false   # F9T-PTP NAKs E5a
+gal_e5b  = true
+bds_b1   = true
+bds_b2i  = true
+bds_b2a  = false   # F9T-PTP NAKs B2a
+glo      = false   # F9T NAKs GLO regardless of RF variant
+
+# UBX outputs: NONE.  This is the key difference from peppar-fix
+# engine config — no RAWX, no TIM-TP, no SFRBX, no NAV-PVT, no
+# NAV-SAT.  All those compete for I2C bandwidth and BNC doesn't
+# need them.
+[receiver.ubx_out_i2c]
+rxm_rawx_rate  = 0
+rxm_sfrbx_rate = 0
+nav_pvt_rate   = 0
+nav_sat_rate   = 0
+tim_tp_rate    = 0
+
+# RTCM 3 outputs on I2C — the only thing leaving the F9T.
+# MSM7 = full resolution.  F9T-20B does not support MSM4.
+[receiver.rtcm_out_i2c]
+rtcm_1077_rate = 1     # GPS MSM7 every epoch
+rtcm_1097_rate = 1     # GAL MSM7 every epoch
+rtcm_1127_rate = 1     # BDS MSM7 every epoch
+rtcm_1005_rate = 5     # ARP every 5 epochs
+rtcm_1230_rate = 5     # GLO biases every 5 epochs (always 0 for us, but harmless)
+
+# CFG keys (for human reference; the configure script translates
+# the booleans above into the actual VALSET payloads):
+# - CFG-MSGOUT-RTCM_3X_TYPE1077_I2C
+# - CFG-MSGOUT-RTCM_3X_TYPE1097_I2C
+# - CFG-MSGOUT-RTCM_3X_TYPE1127_I2C
+# - CFG-MSGOUT-RTCM_3X_TYPE1005_I2C
+# - CFG-MSGOUT-RTCM_3X_TYPE1230_I2C
+#
+# F9T does NOT emit broadcast NAV (1019/1020/1042/1045/1046) on
+# any port.  That data comes from BCEP00BKG0 NTRIP mount instead.
+
+# Persistence: write the config to BBR (battery-backed RAM) and
+# flash so it survives a reboot.
+[receiver.persistence]
+save_to = ["BBR", "FLASH"]

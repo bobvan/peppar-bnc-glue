@@ -1,0 +1,55 @@
+# BNC headless config for ptpmon.  Operator copies this to
+# config/bnc.conf (gitignored) and fills in credentials / paths.
+#
+# BNC reads .ini-style config; this file's keys correspond to BNC's
+# `bnc.cfg` format.  See https://igs.bkg.bund.de/ntrip/bnc for the
+# authoritative options reference.
+#
+# TODO(charlie 2026-04-26): exact key names to be verified against
+# the BNC version installed on ptpmon (varies between releases).
+# The values below are illustrative and need a smoke-test pass.
+
+[General]
+# Hide the GUI; BNC runs headless.
+nw=true
+# log destination — BNC writes per-stream + PPP solution files
+logFileName=/var/log/bnc/bnc.log
+
+[Streams]
+# Rover stream: read from str2str's local NTRIP mount.
+streamA=//localhost:2101/F9T_PTPMON
+
+# Corrections stream: CNES SSRA00CNE0 from products.igs-ip.net.
+# Credentials stored separately at /home/bob/peppar-fix/ntrip-cnes.conf
+# (operator copies user/password fields here when configuring this file).
+streamB=ntrip://USER:PASS@products.igs-ip.net:2101/SSRA00CNE0
+
+# Broadcast ephemeris: BCEP00BKG0 from ntrip.data.gnss.ga.gov.au
+# (same caster credentials as the engine's existing config).
+streamC=ntrip://USER:PASS@ntrip.data.gnss.ga.gov.au:443/BCEP00BKG0
+
+[PPP]
+# Enable PPP backend, route through rtrover → PPP-Wizard library.
+mountpoint=F9T_PTPMON
+backend=rtrover
+pppwizard=/usr/local/lib/libpppw.a
+
+# Output: per-epoch solution log.  Adapter
+# (adapters/bnc_log_to_peppar_schema.py) reads this and emits the
+# PePPAR-Fix external-PPP-log JSONL.
+nmeaPort=0     # disable NMEA stream out
+logFile=/var/log/bnc/ppp-ptpmon.txt
+
+# Constellation enables — match what F9T-PTP can track:
+useGps=true
+useGalileo=true
+useGlonass=false   # F9T NAKs GLO; corrections would be wasted
+useBeiDou=true
+useQzss=false
+
+# AR options: enable PPP-AR via WL+NL with CNES phase biases.
+ambResolution=2    # 0=off, 1=WL only, 2=WL+NL (depends on BNC version)
+
+# Receiver name — appears in RINEX header if BNC writes RINEX
+# alongside the PPP solution.
+receiverName=PTPMON_F9T_PTP

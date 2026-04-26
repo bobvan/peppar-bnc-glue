@@ -1,0 +1,30 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Build artifacts (when source-building BNC / PPP-Wizard locally)
+build/
+*.tar.gz
+*.tgz
+
+# Per-host runtime config with credentials.  Only `*.example`
+# templates are committed; the live config is created by the
+# operator from the example.
+config/bnc.conf
+config/str2str.args
+config/ntrip*.conf
+*.secrets
+
+# Logs (BNC PPP outputs, str2str captures, etc.)
+log/
+*.log
+*.jsonl
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.swp
+.DS_Store

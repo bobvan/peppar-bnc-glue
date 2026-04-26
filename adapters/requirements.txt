@@ -1,0 +1,6 @@
+# adapter deps — currently stdlib-only.
+#
+# Reserved for future tightening if the adapter grows non-trivial
+# parsing (e.g. pyproj for ECEF/ENU transforms, pandas for log
+# windowing) — but as long as the adapter stays stdlib, this file
+# is empty by intent and `pip install -r` is a no-op.

@@ -1,0 +1,27 @@
+# str2str command line for ptpmon.  Operator copies this to
+# config/str2str.args (gitignored) and edits as needed.
+#
+# Reads F9T RTCM 3 from /dev/gnss0 (E810 AQ I2C kernel char device),
+# republishes on a local NTRIP caster mount on port 2101 mountpoint
+# F9T_PTPMON.
+#
+# str2str is part of RTKLIB (apt: rtklib).  The @-file form is read
+# by the systemd unit's ExecStart with /usr/bin/str2str @<this-file>.
+
+# Input: serial-style read from /dev/gnss0 at the kernel's natural
+# rate (no baud — kernel char device).
+-in serial:///dev/gnss0
+
+# Output: NTRIP server publishing on local port 2101, mount F9T_PTPMON,
+# no auth (loopback only — bind str2str to localhost via the # local-only
+# host setting if security matters).
+-out ntrips://:@:2101/F9T_PTPMON
+
+# Logging: rotate captured RTCM at 1 hour to a per-day file (also
+# useful for offline PRIDE batch comparison via convbin → RINEX).
+# Adjust path to wherever the host has space.
+-c /home/bob/peppar-bnc-glue/log/str2str-ptpmon-rtcm.bin
+
+# Refresh interval (status print to stderr); 5 s is enough for
+# operator monitoring without flooding journald.
+-t 5
