@@ -37,64 +37,69 @@ from pathlib import Path
 
 # ── BNC PPP log format reference ─────────────────────────────────────────── #
 #
-# TODO(charlie 2026-04-26): the exact format depends on the BNC
-# version and PPP backend.  When BNC's PPP/logFile is enabled, each
-# converged epoch produces a line like:
+# Verified against BNC 2.13.4 .ppp file output on ptpmon 2026-04-26.
+# The PPP/logPath directory holds three useful files per run:
 #
-#   YYYY-MM-DD HH:MM:SS X Y Z DX DY DZ NSat AmbFix [other]
+#   <STA>_<DOY>0000_01D_01S.ppp   — full per-epoch debug dump
+#   <STA>_<DOY>0000_01D_01S.nmea  — NMEA GPGGA / GPRMC
+#   bnc.log_<YYMMDD>              — general log, includes a less-rich
+#                                    position line per epoch
 #
-# where (X Y Z) is ECEF in meters, (DX DY DZ) is the residual
-# against the a-priori, NSat is satellite count, AmbFix is "F" / "f" /
-# blank for fix status.  This will need verification on first
-# successful BNC startup on ptpmon — sample a real file and confirm
-# the columns before this parser ships.
+# We parse the .ppp file because it carries the formal sigmas.  Per-
+# epoch the .ppp has many lines of which we want the last one — the
+# station summary:
 #
-# The placeholder regex below assumes the columnar form above.
+#   2026-04-26_22:42:24.000 F9T_PTPMON
+#       X = 157475.1067 +- 0.3586
+#       Y = -4756187.9574 +- 0.5427
+#       Z = 4232767.5092 +- 0.3704
+#       dN = 0.9728 +- 0.2426
+#       dE = -0.9187 +- 0.3512
+#       dU = -1.6843 +- 0.6149
+#
+# All on one line in the file; fields order can have variable
+# whitespace.  Date format uses underscore between date and time.
+#
+# BNC 2.13.4's float-PPP (no PPP-Wizard backend) does not emit a
+# per-epoch fix-mode flag in the .ppp summary line — the AR status
+# is observable only via the AMB diagnostic lines that precede the
+# summary.  Map fix_mode = "float" until PPP-Wizard is in place
+# (then per-SV "AMB lIF Exx FIXED" lines or a backend-specific flag
+# appear).
 
-_LOG_RE = re.compile(
-    r"^\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)\s+"
-    r"(?P<x>[-+]?\d+\.\d+)\s+(?P<y>[-+]?\d+\.\d+)\s+(?P<z>[-+]?\d+\.\d+)\s+"
-    r"(?P<dx>[-+]?\d+\.\d+)\s+(?P<dy>[-+]?\d+\.\d+)\s+(?P<dz>[-+]?\d+\.\d+)\s+"
-    r"(?P<n>\d+)\s+"
-    r"(?P<fix>[Ff]|-)?"
+_PPP_RE = re.compile(
+    r"^\s*(?P<date>\d{4}-\d{2}-\d{2})_(?P<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+"
+    r"\S+\s+"  # station name
+    r"X\s*=\s*(?P<x>[-+]?\d+\.\d+)\s+\+-\s+(?P<sx>\d+\.\d+)\s+"
+    r"Y\s*=\s*(?P<y>[-+]?\d+\.\d+)\s+\+-\s+(?P<sy>\d+\.\d+)\s+"
+    r"Z\s*=\s*(?P<z>[-+]?\d+\.\d+)\s+\+-\s+(?P<sz>\d+\.\d+)\s+"
+    r"dN\s*=\s*(?P<dn>[-+]?\d+\.\d+)\s+\+-\s+(?P<sn>\d+\.\d+)\s+"
+    r"dE\s*=\s*(?P<de>[-+]?\d+\.\d+)\s+\+-\s+(?P<se>\d+\.\d+)\s+"
+    r"dU\s*=\s*(?P<du>[-+]?\d+\.\d+)\s+\+-\s+(?P<su>\d+\.\d+)"
 )
 
 
 def parse_line(line: str) -> dict | None:
-    m = _LOG_RE.match(line)
+    m = _PPP_RE.match(line)
     if not m:
         return None
-    yr, mo, dy, hh, mm, ss = m.group(1, 2, 3, 4, 5, 6)
-    sec = float(ss)
+    date = m.group("date")
+    t = m.group("time")
+    yr, mo, dy = (int(x) for x in date.split("-"))
+    hh, mm, ss_str = t.split(":")
+    sec = float(ss_str)
     dt = datetime(
-        int(yr), int(mo), int(dy), int(hh), int(mm), int(sec),
+        yr, mo, dy, int(hh), int(mm), int(sec),
         microsecond=int(round((sec - int(sec)) * 1e6)),
         tzinfo=timezone.utc,
     )
     return {
         "epoch_unix": dt.timestamp(),
         "ecef": (float(m.group("x")), float(m.group("y")), float(m.group("z"))),
-        "residual_ecef": (
-            float(m.group("dx")),
-            float(m.group("dy")),
-            float(m.group("dz")),
-        ),
-        "n_used": int(m.group("n")),
-        "fix_raw": m.group("fix"),
+        "ecef_sigma": (float(m.group("sx")), float(m.group("sy")), float(m.group("sz"))),
+        "enu_residual": (float(m.group("de")), float(m.group("dn")), float(m.group("du"))),
+        "enu_sigma": (float(m.group("se")), float(m.group("sn")), float(m.group("su"))),
     }
-
-
-def map_fix_mode(bnc_fix: str | None) -> str:
-    """Map BNC's per-epoch AR indicator onto SvAmbState lifecycle vocab."""
-    # TODO(charlie 2026-04-26): BNC + PPP-Wizard exposes the AR ratio
-    # test result via a separate channel from the position log; the
-    # log's per-epoch flag (F/f/-) is coarser than our 5-state enum.
-    # Map conservatively until we have the full BNC API plumbing:
-    if bnc_fix == "F":
-        return "validated"
-    if bnc_fix == "f":
-        return "nl_fixed"
-    return "float"
 
 
 def emit_record(
@@ -104,18 +109,28 @@ def emit_record(
     corrections_source: str,
     host: str | None,
 ) -> dict:
+    # BNC 2.13.4 float-PPP doesn't emit a per-epoch fix-mode flag in
+    # the .ppp summary line.  Hard-code "float" for now; revisit when
+    # PPP-Wizard backend is in place (CNES distributes by request —
+    # see deploy/build-ppp-wizard.sh).
     rec = {
         "epoch_unix": parsed["epoch_unix"],
         "engine": engine,
         "corrections_source": corrections_source,
-        "fix_mode": map_fix_mode(parsed.get("fix_raw")),
+        "fix_mode": "float",
         "pos": {"ecef": list(parsed["ecef"])},
-        "n_used": parsed["n_used"],
+        "sigma": {
+            "e": parsed["enu_sigma"][0],
+            "n": parsed["enu_sigma"][1],
+            "u": parsed["enu_sigma"][2],
+        },
     }
     if host:
         rec["host"] = host
-    # Engine-private: BNC's residual against its a-priori.
-    rec["_bnc_residual_ecef"] = list(parsed["residual_ecef"])
+    # Engine-private: BNC's per-axis ECEF sigmas + dN/dE/dU residuals
+    # against the a-priori.
+    rec["_bnc_ecef_sigma"] = list(parsed["ecef_sigma"])
+    rec["_bnc_enu_residual"] = list(parsed["enu_residual"])
     return rec
 
 
