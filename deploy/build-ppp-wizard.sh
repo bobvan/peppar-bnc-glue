@@ -1,51 +1,71 @@
 #!/bin/bash
 # Source-build CNES PPP-Wizard demonstrator.
 #
-# Source:  http://www.ppp-wizard.net/package.html
-# License: research use only (NOT OSI).
-# Reference: Laurichesse & Privat 2015 ION GNSS paper, "Open-source PPP Client".
+# IMPORTANT: PPP-Wizard is NOT publicly downloadable via wget/curl.
+# CNES distributes it on request to track interested users.
+# Confirmed 2026-04-26: ppp-wizard.net/package.html returns 404,
+# the homepage has no download links, and the project's news page
+# directs all questions to contact_ppp@cnes.fr.
 #
-# PPP-Wizard is a self-sufficient C++ library — no external deps per
-# the 2015 paper.  Builds with a single `make` after extracting the
-# tarball.  The build produces a static library `libpppw.a` and a
-# demo binary `pppw_demo` linked against it; BNC's rtrover backend
-# loads the library at runtime.
+# To obtain the tarball:
+#
+#   1. Email contact_ppp@cnes.fr asking for the PPP-Wizard
+#      demonstrator C++ library + sample code.  Reference the
+#      Laurichesse & Privat 2015 ION-GNSS paper "Open-source PPP
+#      Client Implementation for the CNES PPP-WIZARD Demonstrator"
+#      and / or the 2023 MDPI paper "Recent Advances of the
+#      PPP-WIZARD Demonstrator" (Remote Sensing 15:4231).
+#
+#   2. CNES typically responds with a download link.
+#
+#   3. Place the tarball at ~/peppar-bnc-glue/build/ppp-wizard.tgz
+#      (or override PPPW_TARBALL env var below).
+#
+#   4. Re-run this script.
+#
+# License: research use only (NOT OSI).  Read the bundled license
+# before redistributing build outputs.
+#
+# Without PPP-Wizard, BNC still does float PPP via its own internal
+# implementation — that's enough for first-light cross-engine
+# comparison.  PPP-Wizard is the upgrade path to integer AR.
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${REPO_DIR}/build/ppp-wizard"
-PPPW_URL="http://www.ppp-wizard.net/Articles/RTKLIB_Demo5_Wizard_Hardlink.tgz"
-# TODO(charlie 2026-04-26): the canonical download URL changes per
-# release on ppp-wizard.net/package.html.  Confirm current filename
-# at build time; the placeholder above is the stable hardlink form
-# but may not be current.  Pin a SHA256 once a known-working release
-# is verified.
+PPPW_TARBALL="${PPPW_TARBALL:-${REPO_DIR}/build/ppp-wizard.tgz}"
 
-# TODO(charlie 2026-04-26): exact build steps need verification on
-# first run on ptpmon.
-#
-# Skeleton:
+if [[ ! -f "${PPPW_TARBALL}" ]]; then
+    cat <<EOF >&2
+
+PPP-Wizard tarball not found at ${PPPW_TARBALL}.
+
+PPP-Wizard is request-only — CNES distributes via email to track users.
+See the comments at the top of this script for the request procedure.
+
+Skipping PPP-Wizard build.  BNC will still build and run with its
+internal float-PPP engine; PPP-Wizard is only needed for integer-AR
+upgrade.
+
+EOF
+    exit 0   # not a failure — BNC build can proceed without it
+fi
+
+# TODO(charlie): once a real PPP-Wizard tarball is in hand, fill in
+# the build steps below.  Approximate flow per the 2015 paper and
+# typical C++ static-library packaging:
 #
 # mkdir -p "${BUILD_DIR}"
 # cd "${BUILD_DIR}"
-# wget "${PPPW_URL}"
-# tar xzf "$(basename ${PPPW_URL})"
-# cd PPPWizard
+# tar xzf "${PPPW_TARBALL}"
+# cd PPPWizard*/
 # make -j$(nproc)
 # sudo install -m 0644 libpppw.a /usr/local/lib/
-# sudo install -m 0755 pppw_demo /usr/local/bin/
+# sudo install -m 0755 pppw_demo /usr/local/bin/    # if the demo binary exists
 # sudo cp -r include/* /usr/local/include/
-#
-# Then BNC's rtrover.cpp must be compiled against /usr/local/include
-# headers and linked against /usr/local/lib/libpppw.a — see
-# build-bnc.sh for that wiring.
 
-echo "build-ppp-wizard.sh: deferred (placeholder; needs first-run verification)."
-echo "  Skipping for now.  PPP-Wizard will not be available until this"
-echo "  script is filled in.  BNC + PPP-Wizard come online together"
-echo "  (PPP-Wizard's library is loaded by BNC's rtrover backend)."
-echo ""
-echo "  Note: PPP-Wizard is research-use-only (not OSI).  Read the"
-echo "  license at ppp-wizard.net before redistributing build outputs."
+echo "build-ppp-wizard.sh: tarball present at ${PPPW_TARBALL}, but"
+echo "build steps need filling in once we have an actual tarball to"
+echo "verify against.  Stopping for now — TODO marker in source."
 exit 0
