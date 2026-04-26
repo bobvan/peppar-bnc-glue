@@ -92,7 +92,10 @@ class KernelGnssFd:
                 return
 
     def flush(self) -> None:
-        os.fsync(self._fd)
+        # os.fsync() returns EINVAL on a char device; writes through
+        # the GNSS char device are already synchronous as far as the
+        # kernel-userspace boundary is concerned.  No-op.
+        pass
 
     def close(self) -> None:
         try:
