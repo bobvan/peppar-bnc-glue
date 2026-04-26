@@ -9,8 +9,22 @@
 # semicolon-separated string with embedded user:pass URLs.  Composing
 # that via systemd's argv expansion is brittle when the password has
 # special characters, and EnvironmentFile parsing has its own
-# quirks.  A wrapper is clearer and keeps credentials in process
-# memory only.
+# quirks.  A wrapper is clearer.
+#
+# CREDENTIAL EXPOSURE: this approach puts the user:pass for both
+# CNES and BKG into BNC's process cmdline, which is visible to any
+# user who can `ps` or read the systemd journal as bob/root.  This
+# is acceptable for ptpmon's threat model: anyone with `ps`
+# capability already has shell access as bob, and `cat
+# /home/bob/peppar-fix/ntrip-cnes.conf` exposes the same secrets
+# directly.  We do NOT introduce new attacker classes via this
+# wrapper.  An alternative path — write a .conf file to /run/...
+# at mode 0600 and let BNC --conf read it — was investigated 2026-
+# 04-26 and rejected: BNC's QSettings INI parser silently truncates
+# multi-element semicolon-separated values regardless of "..." or
+# \; escaping, leaving only the first stream registered.  The
+# --key invocation is the only headless path verified to work
+# with multi-stream configurations.
 #
 # IMPORTANT: do NOT URL-encode the user:pass.  BNC sends the literal
 # bytes through HTTP Basic Auth.  Encoding `!` to `%21` produced
