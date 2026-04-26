@@ -1,8 +1,8 @@
 [Unit]
 Description=BKG NTRIP Client (BNC) running CNES PPP-Wizard backend
 Documentation=https://igs.bkg.bund.de/ntrip/bnc
-After=str2str-ptpmon.service network-online.target
-Wants=str2str-ptpmon.service network-online.target
+After=f9t-tcp-bridge-ptpmon.service network-online.target
+Wants=f9t-tcp-bridge-ptpmon.service network-online.target
 
 [Service]
 Type=simple

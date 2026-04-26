@@ -51,7 +51,8 @@ APT_PKGS=(
     qtpositioning5-dev
     libqt5serialport5-dev
     libssl-dev
-    rtklib
+    rtklib                  # convbin / rnx2rtkp / future use
+    socat                   # F9T kernel GNSS char device → TCP bridge
     python3-venv
     python3-pip
 )
@@ -95,9 +96,8 @@ fi
 # ── 5. systemd units ─────────────────────────────────────────────────────── #
 
 echo "==> systemd units"
-# Always install str2str — it's the F9T → local-NTRIP feeder, useful
-# even before BNC is up.
-for unit in str2str-ptpmon.service; do
+# Always install the F9T TCP bridge — useful even before BNC is up.
+for unit in f9t-tcp-bridge-ptpmon.service; do
     src="${REPO_DIR}/deploy/systemd/${unit}"
     dst="/etc/systemd/system/${unit}"
     if [[ ! -f "${src}" ]]; then
@@ -106,6 +106,15 @@ for unit in str2str-ptpmon.service; do
     fi
     run sudo install -m 0644 "${src}" "${dst}"
 done
+
+# Remove any leftover str2str-ptpmon.service from earlier installs
+# (the unit was renamed when we discovered str2str's file:// path
+# doesn't work for kernel GNSS char devices).
+if [[ -f /etc/systemd/system/str2str-ptpmon.service ]]; then
+    run sudo systemctl stop str2str-ptpmon.service 2>/dev/null || true
+    run sudo systemctl disable str2str-ptpmon.service 2>/dev/null || true
+    run sudo rm -f /etc/systemd/system/str2str-ptpmon.service
+fi
 
 # Install bnc unit only if the bnc binary is available.  Otherwise it
 # fails to start on enable + creates systemd noise.

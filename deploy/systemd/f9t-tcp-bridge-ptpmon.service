@@ -1,0 +1,41 @@
+[Unit]
+Description=F9T (kernel GNSS char device) → local TCP RTCM 3 bridge
+Documentation=https://github.com/bobvan/peppar-bnc-glue
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# /dev/gnss0 is root-only (crw------- root:root) on E810.  Run as
+# root for the smoke-test phase.  TODO: install a udev rule that
+# makes /dev/gnss* group-readable by `dialout` or a dedicated
+# `gnss` group, then drop User= to bob.
+User=root
+Group=root
+
+# Bridge raw bytes (RTCM 3 stream) from the F9T's kernel GNSS char
+# device to a local TCP listener.  BNC (or any tcp client) reads
+# from port 2101.
+#
+# Why socat and not RTKLIB's str2str:
+#
+# RTKLIB's `str2str -in serial://` calls termios.tcgetattr(), which
+# returns EINVAL on /dev/gnss* (kernel char devices are not ttys).
+# `str2str -in file://` opens the device but never reads bytes
+# (RTKLIB's file mode expects a seekable regular file, not a live
+# char-device stream — output stays at "(1) waiting" with 0 bps
+# even with a TCP client connected).  socat's FILE address handles
+# both cases cleanly.
+#
+# `fork,reuseaddr` lets multiple clients connect simultaneously
+# and survives client reconnects without restarting socat.
+ExecStart=/usr/bin/socat -u FILE:/dev/gnss0 TCP-LISTEN:2101,fork,reuseaddr
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
