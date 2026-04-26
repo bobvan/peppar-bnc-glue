@@ -1,55 +1,60 @@
-# BNC headless config for ptpmon.  Operator copies this to
-# config/bnc.conf (gitignored) and fills in credentials / paths.
+# BNC headless config template for ptpmon.
 #
-# BNC reads .ini-style config; this file's keys correspond to BNC's
-# `bnc.cfg` format.  See https://igs.bkg.bund.de/ntrip/bnc for the
-# authoritative options reference.
+# Operator copies this to config/bnc.conf (gitignored) on each host
+# and fills in NTRIP credentials, then BNC reads via:
+#   bnc --nw --conf /home/bob/peppar-bnc-glue/config/bnc.conf
 #
-# TODO(charlie 2026-04-26): exact key names to be verified against
-# the BNC version installed on ptpmon (varies between releases).
-# The values below are illustrative and need a smoke-test pass.
+# Format: BNC's QSettings .ini.  Section + key = value lines.
+# Keys are documented under `bnc --help` (look for "Streams Panel
+# keys", "PPP Client Panel 1 keys", etc.).
 
-[General]
-# Hide the GUI; BNC runs headless.
-nw=true
-# log destination — BNC writes per-stream + PPP solution files
-logFileName=/var/log/bnc/bnc.log
+[BNC]
+# General
+logFile=/home/bob/peppar-bnc-glue/log/bnc.log
 
-[Streams]
-# Rover stream: read from str2str's local NTRIP mount.
-streamA=//localhost:2101/F9T_PTPMON
+# Streams Panel: list of NTRIP mounts BNC pulls.  Format per element:
+#   //USER:PASS@HOST:PORT/MOUNT FORMAT COUNTRY LAT LON nmea NTRIPVER
+# Multiple elements separated by ";".
+#
+# Three streams:
+#   F9T_PTPMON  — local rover, our NTRIP caster on loopback (no auth, NTRIP/1)
+#   SSRA00CNE0  — CNES corrections, products.igs-ip.net (NTRIP/2 over TLS)
+#   BCEP00BKG0  — broadcast eph, ntrip.data.gnss.ga.gov.au (NTRIP/2 over TLS)
+#
+# Replace USER and PASS with credentials from /home/bob/peppar-fix/
+# ntrip-cnes.conf and /home/bob/peppar-fix/ntrip.conf respectively.
+mountPoints=//:@127.0.0.1:2102/F9T_PTPMON RTCM_3.3 USA 38.00 -122.00 no 1;//USER:PASS@products.igs-ip.net:443/SSRA00CNE0 RTCM_3.3 FRA 48.00 2.00 no 2s;//USER:PASS@ntrip.data.gnss.ga.gov.au:443/BCEP00BKG0 RTCM_3.3 AUS -27.00 153.00 no 2s
 
-# Corrections stream: CNES SSRA00CNE0 from products.igs-ip.net.
-# Credentials stored separately at /home/bob/peppar-fix/ntrip-cnes.conf
-# (operator copies user/password fields here when configuring this file).
-streamB=ntrip://USER:PASS@products.igs-ip.net:2101/SSRA00CNE0
+# PPP Client Panel 1
+PPP/dataSource=Real-Time Streams
+PPP/corrMount=SSRA00CNE0
+PPP/logPath=/home/bob/peppar-bnc-glue/log/
 
-# Broadcast ephemeris: BCEP00BKG0 from ntrip.data.gnss.ga.gov.au
-# (same caster credentials as the engine's existing config).
-streamC=ntrip://USER:PASS@ntrip.data.gnss.ga.gov.au:443/BCEP00BKG0
+# PPP Client Panel 2 — signal combinations for F9T-PTP (L2-only):
+#   GPS L1CA + L2CL  → G:1&C  G:2&L
+#   GAL E1   + E5b   → E:1&C  E:7&Q
+#   BDS B1   + B2I   → C:2&I  C:7&I
+#
+# Station table format per element:
+#   MOUNT,σdN(mm),σdE(mm),σdU(mm),σpN(mm),σpE(mm),σpU(mm),σTropo(m),Qtropo,port,signals
+PPP/staTable=F9T_PTPMON,100.0,100.0,100.0,100.0,100.0,100.0,0.1,3e-6,0,G:1&C G:2&L E:1&C E:7&Q C:2&I C:7&I
 
-[PPP]
-# Enable PPP backend, route through rtrover → PPP-Wizard library.
-mountpoint=F9T_PTPMON
-backend=rtrover
-pppwizard=/usr/local/lib/libpppw.a
+# Linear combinations: P3&L3 = ionosphere-free code+phase
+PPP/lcGPS=P3&L3
+PPP/lcGalileo=P3&L3
+PPP/lcBDS=P3&L3
+PPP/lcGLONASS=no
 
-# Output: per-epoch solution log.  Adapter
-# (adapters/bnc_log_to_peppar_schema.py) reads this and emits the
-# PePPAR-Fix external-PPP-log JSONL.
-nmeaPort=0     # disable NMEA stream out
-logFile=/var/log/bnc/ppp-ptpmon.txt
+# Default sigmas (meters)
+PPP/sigmaC1=2.0
+PPP/sigmaL1=0.01
+PPP/maxResC1=4.0
+PPP/maxResL1=0.04
+PPP/eleWgtCode=2
+PPP/eleWgtPhase=2
 
-# Constellation enables — match what F9T-PTP can track:
-useGps=true
-useGalileo=true
-useGlonass=false   # F9T NAKs GLO; corrections would be wasted
-useBeiDou=true
-useQzss=false
+# Convergence / wait
+PPP/corrWaitTime=5
 
-# AR options: enable PPP-AR via WL+NL with CNES phase biases.
-ambResolution=2    # 0=off, 1=WL only, 2=WL+NL (depends on BNC version)
-
-# Receiver name — appears in RINEX header if BNC writes RINEX
-# alongside the PPP solution.
-receiverName=PTPMON_F9T_PTP
+# Output: NMEA log per epoch (BNC writes <staid>.nmea + <staid>.ppp under logPath)
+PPP/nmeaPath=/home/bob/peppar-bnc-glue/log/
