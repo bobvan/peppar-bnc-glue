@@ -15,22 +15,25 @@ User=root
 Group=root
 
 # Bridge raw bytes (RTCM 3 stream) from the F9T's kernel GNSS char
-# device to a local TCP listener.  BNC (or any tcp client) reads
+# device to a local TCP listener.  BNC and any tcp client read
 # from port 2101.
 #
-# Why socat and not RTKLIB's str2str:
+# Reader/broadcast architecture: ONE process reads /dev/gnss0 and
+# fans the bytes out to every connected client.  This replaces the
+# earlier `socat -u FILE:/dev/gnss0 TCP-LISTEN:2101,fork` pattern,
+# which had a subtle bug — `fork` spawned a separate /dev/gnss0
+# reader per accepted client, and multiple readers of a Linux char
+# device SPLIT the byte stream rather than each receiving a copy.
+# Measured 2026-04-27 on ptpmon: 2-consumer setup got 194 B/s each
+# vs single-consumer 633 B/s, with bytes lost in races.
 #
-# RTKLIB's `str2str -in serial://` calls termios.tcgetattr(), which
-# returns EINVAL on /dev/gnss* (kernel char devices are not ttys).
-# `str2str -in file://` opens the device but never reads bytes
-# (RTKLIB's file mode expects a seekable regular file, not a live
-# char-device stream — output stays at "(1) waiting" with 0 bps
-# even with a TCP client connected).  socat's FILE address handles
-# both cases cleanly.
-#
-# `fork,reuseaddr` lets multiple clients connect simultaneously
-# and survives client reconnects without restarting socat.
-ExecStart=/usr/bin/socat -u FILE:/dev/gnss0 TCP-LISTEN:2101,fork,reuseaddr
+# Historical note on RTKLIB str2str: also doesn't work for
+# /dev/gnss*.  `-in serial://` calls termios.tcgetattr() (EINVAL on
+# kernel char devices), `-in file://` opens but never reads.
+ExecStart=/usr/bin/python3 /home/bob/peppar-bnc-glue/deploy/f9t_broadcaster.py \
+    --device /dev/gnss0 \
+    --listen-host 127.0.0.1 \
+    --listen-port 2101
 
 Restart=on-failure
 RestartSec=5

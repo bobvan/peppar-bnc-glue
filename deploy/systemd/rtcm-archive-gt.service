@@ -1,0 +1,28 @@
+[Unit]
+Description=gt-side RTCM 3 archive of ptpmon's F9T_PTPMON NTRIP mount
+Documentation=https://github.com/bobvan/peppar-bnc-glue
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Each ExecStart invocation writes one file, named with the start
+# timestamp.  After ROTATE_SECONDS the script exits cleanly;
+# Restart=always immediately starts a new invocation with a fresh
+# filename.  Net effect: hourly file rotation, ~0 second gap.
+Type=simple
+ExecStart=/home/bob/git/peppar-bnc-glue/deploy/capture-ntrip-rtcm.sh
+Restart=always
+RestartSec=2
+
+# Environment overrides if needed (defaults baked into the script)
+# Environment=HOST=ptpmon PORT=2102 MOUNT=F9T_PTPMON
+# Environment=ARCHIVE_DIR=/home/bob/gt/rtcm-archive/ptpmon
+# Environment=ROTATE_SECONDS=3600
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# This is a user systemd unit (installed under
+# ~/.config/systemd/user/), so default.target not multi-user.target.
+WantedBy=default.target
