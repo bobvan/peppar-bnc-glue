@@ -69,6 +69,7 @@ exec /usr/local/bin/bnc --nw \
     --key PPP/corrMount SSRA00CNE0 \
     --key PPP/logPath "${LOG_DIR}/" \
     --key PPP/nmeaPath "${LOG_DIR}/" \
+    --key PPP/antexFile /home/bob/peppar-fix/ngs20.atx \
     --key PPP/staTable "F9T_PTPMON,100.0,100.0,100.0,100.0,100.0,100.0,0.1,3e-6,0,E:1&C E:7&Q C:2&I C:7&I" \
     --key PPP/lcGalileo "P3&L3" \
     --key PPP/lcBDS "P3&L3" \
