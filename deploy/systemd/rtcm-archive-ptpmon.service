@@ -1,0 +1,34 @@
+[Unit]
+Description=Local RTCM 3 archive — appends F9T's raw stream to disk for offline analysis
+Documentation=https://github.com/bobvan/peppar-bnc-glue
+After=f9t-tcp-bridge-ptpmon.service
+Requires=f9t-tcp-bridge-ptpmon.service
+
+[Service]
+Type=simple
+User=bob
+Group=bob
+
+# Captures the F9T RTCM 3 stream from socat's local TCP server to a
+# file on disk.  Independent of any network path — a LAN drop that
+# would interrupt a remote NTRIP capture (e.g., gt pulling our caster)
+# does NOT affect this local archive.
+#
+# Bravo's cross-firmware A/B test requires uninterrupted ptpmon RTCM
+# for an overnight window so that gaps look like gaps, not like the
+# under-admit signature the test is measuring.  This service is the
+# backup-of-record for that.
+#
+# socat OPEN flags: creat (allow create), append (don't truncate on
+# restart — overnight capture survives a service restart without
+# losing prior bytes).  After the overnight, operator renames the
+# file to include the date / experiment name.
+ExecStart=/usr/bin/socat -u TCP:127.0.0.1:2101 OPEN:/home/bob/peppar-bnc-glue/log/rtcm-archive.rtcm3,creat,append
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
